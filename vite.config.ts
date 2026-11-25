@@ -7,6 +7,7 @@ import {VitePWA} from 'vite-plugin-pwa';
 
 export default defineConfig(() => {
   return {
+    base: '/VNNewsCrawler_V2/',
     plugins: [
       react(),
       tailwindcss(),
@@ -14,7 +15,7 @@ export default defineConfig(() => {
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png', 'pwa-maskable-512x512.png'],
         manifest: {
-          id: '/',
+          id: './',
           name: 'VNNewsCrawler — Thu thập Tin tức Tiếng Việt',
           short_name: 'VNCrawler',
           description: 'Ứng dụng đa nền tảng thu thập bài viết và hình ảnh từ VNExpress, Dân Trí, VietNamNet với chế độ đọc ngoại tuyến.',
@@ -22,24 +23,24 @@ export default defineConfig(() => {
           background_color: '#F8FAFC',
           display: 'standalone',
           orientation: 'any',
-          start_url: '/',
-          scope: '/',
+          start_url: './',
+          scope: './',
           lang: 'vi',
           icons: [
             {
-              src: '/pwa-192x192.png',
+              src: 'pwa-192x192.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-512x512.png',
+              src: 'pwa-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any',
             },
             {
-              src: '/pwa-maskable-512x512.png',
+              src: 'pwa-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
