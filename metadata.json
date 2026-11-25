@@ -1,0 +1,6 @@
+{
+  "name": "VNNewsCrawler",
+  "description": "Ứng dụng đa nền tảng (Android, iOS, Web) thu thập, lưu trữ ngoại tuyến và chia sẻ tin tức từ VNExpress, Dân Trí và VietNamNet.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
