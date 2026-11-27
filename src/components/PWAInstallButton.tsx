@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, Share, PlusSquare, X, Smartphone } from 'lucide-react';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 
@@ -22,35 +23,25 @@ export const PWAInstallButton: React.FC<Props> = ({ compact = false }) => {
     setShowGuide(true);
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={handleClick}
-        className={
-          compact
-            ? 'inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 transition-colors hover:bg-slate-100 whitespace-nowrap shrink-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
-            : 'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-3 py-2 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-200/80 whitespace-nowrap dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-700'
-        }
-      >
-        <Download className="h-4 w-4 text-red-700 dark:text-red-400" aria-hidden="true" />
-        <span>{isIOS ? 'Cài lên iPhone / iPad' : 'Cài đặt ứng dụng'}</span>
-      </button>
-
-      {showGuide && (
+  const guideModal = showGuide
+    ? createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pwa-install-title"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
           onClick={() => setShowGuide(false)}
         >
           <div
-            className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-2xl dark:bg-slate-900 dark:border dark:border-slate-800"
+            className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-3xl bg-white p-6 pb-8 shadow-2xl sm:rounded-2xl sm:pb-6 dark:bg-slate-900 dark:border dark:border-slate-800"
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700" />
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-2.5">
-                <Smartphone className="h-5 w-5 text-red-700 dark:text-red-400" aria-hidden="true" />
-                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+                <Smartphone className="h-5 w-5 shrink-0 text-red-700 dark:text-red-400" aria-hidden="true" />
+                <h3 id="pwa-install-title" className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   {isIOS ? 'Cài đặt trên iOS (iPhone / iPad)' : 'Cài đặt lên Android, iOS & Máy tính'}
                 </h3>
               </div>
@@ -65,7 +56,7 @@ export const PWAInstallButton: React.FC<Props> = ({ compact = false }) => {
             </div>
 
             {isIOS ? (
-              <div className="mt-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+              <div className="mt-4 space-y-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 <p className="flex items-start gap-2.5">
                   <Share className="mt-0.5 h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
                   <span>
@@ -80,7 +71,7 @@ export const PWAInstallButton: React.FC<Props> = ({ compact = false }) => {
                 </p>
               </div>
             ) : (
-              <div className="mt-4 space-y-2.5 text-sm text-slate-600 dark:text-slate-300">
+              <div className="mt-4 space-y-2.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                 <p>
                   • <strong>Android (Chrome):</strong> Mở menu <strong>⋮</strong> của trình duyệt và chọn <strong>Cài đặt ứng dụng / Thêm vào màn hình chính</strong>.
                 </p>
@@ -96,13 +87,31 @@ export const PWAInstallButton: React.FC<Props> = ({ compact = false }) => {
             <button
               type="button"
               onClick={() => setShowGuide(false)}
-              className="mt-5 min-h-[44px] w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
+              className="mt-5 min-h-[44px] w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-200"
             >
               Đã hiểu
             </button>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={handleClick}
+        className={
+          compact
+            ? 'inline-flex min-h-[40px] items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 transition-colors hover:bg-slate-100 whitespace-nowrap shrink-0 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700'
+            : 'inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-100/80 px-3 py-2 text-xs font-semibold text-slate-800 transition-colors hover:bg-slate-200/80 whitespace-nowrap dark:border-slate-700 dark:bg-slate-800/80 dark:text-slate-100 dark:hover:bg-slate-700'
+        }
+      >
+        <Download className="h-4 w-4 text-red-700 dark:text-red-400" aria-hidden="true" />
+        <span>{isIOS ? 'Cài lên iPhone / iPad' : 'Cài đặt ứng dụng'}</span>
+      </button>
+      {guideModal}
     </>
   );
 };

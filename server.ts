@@ -214,8 +214,12 @@ async function bootstrap() {
 
   // Mount Vite middlewares in dev, or serve static dist in production
   if (!IS_PROD) {
+    const disableHmr = process.env.DISABLE_HMR === 'true' || Boolean(process.env.APP_URL);
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: disableHmr ? false : undefined,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

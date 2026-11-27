@@ -3,6 +3,9 @@ import { NEWS_SOURCES } from '../shared/types';
 import type { CrawledArticle } from '../shared/types';
 
 export function getRawFileUrl(relativePath: string, download = false): string {
+  if (/^(https?:|data:|blob:)/i.test(relativePath)) {
+    return relativePath;
+  }
   const params = new URLSearchParams({ path: relativePath });
   if (download) params.set('download', '1');
   return `/api/files/raw?${params.toString()}`;
