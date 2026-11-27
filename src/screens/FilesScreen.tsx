@@ -8,9 +8,8 @@ import {
   RefreshCw,
   X,
 } from 'lucide-react';
-import type { CrawledArticle, ResultFileItem } from '../shared/types';
+import type { ResultFileItem } from '../shared/types';
 import {
-  buildArticleTxtExport,
   copyTextToClipboard,
   downloadSingleImage,
   exportTextFile,
@@ -21,12 +20,11 @@ import {
 
 interface Props {
   files: ResultFileItem[];
-  articles?: CrawledArticle[];
   onRefresh: () => void;
   onNotify: (type: 'success' | 'info' | 'warning' | 'error', message: string) => void;
 }
 
-export const FilesScreen: React.FC<Props> = ({ files, articles = [], onRefresh, onNotify }) => {
+export const FilesScreen: React.FC<Props> = ({ files, onRefresh, onNotify }) => {
   const [previewText, setPreviewText] = useState<{ name: string; content: string } | null>(null);
   const [previewImage, setPreviewImage] = useState<ResultFileItem | null>(null);
 
@@ -40,30 +38,18 @@ export const FilesScreen: React.FC<Props> = ({ files, articles = [], onRefresh, 
     return Array.from(map.entries());
   }, [files]);
 
-  const readTextContent = async (file: ResultFileItem): Promise<string | null> => {
-    try {
-      const res = await fetch(`/api/files/content?path=${encodeURIComponent(file.relativePath)}`);
-      if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-        const data = (await res.json()) as { content: string };
-        return data.content;
-      }
-    } catch {
-      // Fallback to local article
-    }
-    const matched = articles.find((a) => a.txtFilePath === file.relativePath);
-    return matched ? buildArticleTxtExport(matched) : null;
-  };
-
   const handleOpenFile = async (file: ResultFileItem) => {
     if (file.isImage) {
       setPreviewImage(file);
       return;
     }
     if (file.isText) {
-      const content = await readTextContent(file);
-      if (content !== null) {
-        setPreviewText({ name: file.name, content });
-      } else {
+      try {
+        const res = await fetch(`/api/files/content?path=${encodeURIComponent(file.relativePath)}`);
+        if (!res.ok) throw new Error();
+        const data = (await res.json()) as { content: string };
+        setPreviewText({ name: file.name, content: data.content });
+      } catch {
         onNotify('error', 'Không thể đọc nội dung tệp');
       }
     }
@@ -157,9 +143,9 @@ export const FilesScreen: React.FC<Props> = ({ files, articles = [], onRefresh, 
                             await downloadSingleImage(file.relativePath, file.name);
                             onNotify('success', `Đã tải ${file.name}`);
                           } else {
-                            const content = await readTextContent(file);
-                            if (content === null) throw new Error();
-                            exportTextFile(file.name, content);
+                            const res = await fetch(`/api/files/content?path=${encodeURIComponent(file.relativePath)}`);
+                            const data = (await res.json()) as { content: string };
+                            exportTextFile(file.name, data.content);
                             onNotify('success', `Đã xuất ${file.name}`);
                           }
                         } catch {

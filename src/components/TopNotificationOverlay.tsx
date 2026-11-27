@@ -13,7 +13,7 @@ export const TopNotificationOverlay: React.FC<Props> = ({ notifications, onDismi
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed top-0 left-0 right-0 z-[110] flex flex-col items-center gap-2 px-4 pt-safe mt-2"
+      className="pointer-events-none fixed top-0 left-0 right-0 z-50 flex flex-col items-center gap-2 px-4 pt-safe mt-2"
     >
       {notifications.map((item) => {
         const styleMap = {
