@@ -12,6 +12,7 @@ import {
   saveLocalConfig,
   saveLocalLogs,
 } from './lib/offlineCache';
+import { apiUrl, setApiBaseUrl } from './lib/shareUtils';
 import { ArticleDetailScreen } from './screens/ArticleDetailScreen';
 import { CrawlerScreen } from './screens/CrawlerScreen';
 import { FilesScreen } from './screens/FilesScreen';
@@ -74,6 +75,21 @@ function buildVirtualFilesFromArticles(articles: CrawledArticle[]): ResultFileIt
   return items;
 }
 
+async function probeBackendHealth(baseUrl: string): Promise<boolean> {
+  try {
+    const clean = baseUrl.trim().replace(/\/+$/, '');
+    const target = clean ? `${clean}/api/health` : '/api/health';
+    const res = await fetch(target);
+    if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) {
+      return false;
+    }
+    const data = (await res.json()) as { ok?: boolean };
+    return Boolean(data.ok);
+  } catch {
+    return false;
+  }
+}
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('crawler');
   const [selectedArticle, setSelectedArticle] = useState<CrawledArticle | null>(null);
@@ -85,6 +101,13 @@ export default function App() {
   const [sessions, setSessions] = useState<CrawlSession[]>([]);
   const [notifications, setNotifications] = useState<TopNotification[]>([]);
   const [hasServerBackend, setHasServerBackend] = useState<boolean | null>(null);
+  const [backendUrl, setBackendUrl] = useState<string>(() => {
+    try {
+      return localStorage.getItem('vncrawler_backend_url') || '';
+    } catch {
+      return '';
+    }
+  });
 
   const browserAbortRef = useRef<AbortController | null>(null);
 
@@ -148,10 +171,10 @@ export default function App() {
 
       try {
         const [articlesRes, filesRes, logsRes, sessionsRes] = await Promise.all([
-          fetch('/api/articles'),
-          fetch('/api/files'),
-          fetch('/api/logs'),
-          fetch('/api/sessions'),
+          fetch(apiUrl('/api/articles')),
+          fetch(apiUrl('/api/files')),
+          fetch(apiUrl('/api/logs')),
+          fetch(apiUrl('/api/sessions')),
         ]);
 
         if (articlesRes.ok && articlesRes.headers.get('content-type')?.includes('application/json')) {
@@ -175,25 +198,24 @@ export default function App() {
     [hasServerBackend, refreshLocalData],
   );
 
-  // Detect whether Express backend (/api/health) exists or running on static GitHub Pages
+  // Detect whether local Express backend or configured remote backend exists
   useEffect(() => {
     void (async () => {
-      let serverOk = false;
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
-          const data = (await res.json()) as { ok?: boolean };
-          serverOk = Boolean(data.ok);
+      let serverOk = await probeBackendHealth('');
+      if (serverOk) {
+        setApiBaseUrl('');
+      } else if (backendUrl) {
+        serverOk = await probeBackendHealth(backendUrl);
+        if (serverOk) {
+          setApiBaseUrl(backendUrl);
         }
-      } catch {
-        serverOk = false;
       }
 
       setHasServerBackend(serverOk);
 
       if (serverOk) {
         try {
-          const cfgRes = await fetch('/api/config');
+          const cfgRes = await fetch(apiUrl('/api/config'));
           if (cfgRes.ok && cfgRes.headers.get('content-type')?.includes('application/json')) {
             setConfig((await cfgRes.json()) as CrawlConfig);
           }
@@ -206,14 +228,53 @@ export default function App() {
 
       await refreshAllData(serverOk);
     })();
-  }, [refreshAllData]);
+  }, [backendUrl, refreshAllData]);
+
+  const handleSaveBackendUrl = async (rawUrl: string): Promise<boolean> => {
+    const clean = rawUrl.trim().replace(/\/+$/, '');
+    if (!clean) {
+      try {
+        localStorage.removeItem('vncrawler_backend_url');
+      } catch {
+        // ignore
+      }
+      setBackendUrl('');
+      setApiBaseUrl('');
+      setHasServerBackend(false);
+      notify('info', 'Đã xóa URL máy chủ thu thập');
+      return false;
+    }
+
+    if (!/^https?:\/\//i.test(clean)) {
+      notify('warning', 'URL máy chủ phải bắt đầu bằng https:// hoặc http://');
+      return false;
+    }
+
+    const ok = await probeBackendHealth(clean);
+    if (!ok) {
+      notify('error', 'Không kết nối được tới máy chủ. Kiểm tra lại URL hoặc CORS.');
+      return false;
+    }
+
+    try {
+      localStorage.setItem('vncrawler_backend_url', clean);
+    } catch {
+      // ignore
+    }
+    setApiBaseUrl(clean);
+    setBackendUrl(clean);
+    setHasServerBackend(true);
+    await refreshAllData(true);
+    notify('success', 'Đã kết nối thành công tới máy chủ thu thập!');
+    return true;
+  };
 
   // Subscribe to SSE crawl progress stream ONLY when Express backend is active
   const prevRunningRef = useRef(false);
   useEffect(() => {
     if (hasServerBackend !== true) return;
 
-    const es = new EventSource('/api/crawl/stream');
+    const es = new EventSource(apiUrl('/api/crawl/stream'));
 
     es.onmessage = (event) => {
       try {
@@ -249,7 +310,7 @@ export default function App() {
     setConfig((prev) => {
       const next = { ...prev, ...patch };
       if (hasServerBackend) {
-        void fetch('/api/config', {
+        void fetch(apiUrl('/api/config'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(next),
@@ -269,7 +330,7 @@ export default function App() {
 
     if (hasServerBackend) {
       try {
-        const res = await fetch('/api/crawl/start', {
+        const res = await fetch(apiUrl('/api/crawl/start'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(config),
@@ -307,7 +368,7 @@ export default function App() {
       setLogs(result.logs);
       setSessions(result.sessions);
     } catch {
-      notify('error', 'Không thể hoàn tất thu thập trên trình duyệt');
+      notify('error', 'Không thể thu thập trực tiếp từ trình duyệt do giới hạn CORS. Hãy kết nối URL máy chủ Node.js.');
     } finally {
       browserAbortRef.current = null;
     }
@@ -316,7 +377,7 @@ export default function App() {
   const handleStopCrawl = async () => {
     if (hasServerBackend) {
       try {
-        await fetch('/api/crawl/stop', { method: 'POST' });
+        await fetch(apiUrl('/api/crawl/stop'), { method: 'POST' });
       } catch {
         notify('error', 'Không thể gửi lệnh dừng');
       }
@@ -329,7 +390,7 @@ export default function App() {
     if (progress.failedUrls.length === 0) return;
     if (hasServerBackend) {
       try {
-        const res = await fetch('/api/crawl/retry', {
+        const res = await fetch(apiUrl('/api/crawl/retry'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -368,7 +429,7 @@ export default function App() {
   const handleDeleteArticles = async (ids: string[]) => {
     if (hasServerBackend) {
       try {
-        const res = await fetch('/api/articles/bulk-delete', {
+        const res = await fetch(apiUrl('/api/articles/bulk-delete'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ids }),
@@ -399,7 +460,7 @@ export default function App() {
   const handleClearLogs = async () => {
     if (hasServerBackend) {
       try {
-        await fetch('/api/logs', { method: 'DELETE' });
+        await fetch(apiUrl('/api/logs'), { method: 'DELETE' });
         setLogs([]);
         notify('info', 'Đã xóa toàn bộ nhật ký');
       } catch {
@@ -443,6 +504,9 @@ export default function App() {
             config={config}
             progress={progress}
             sessions={sessions}
+            hasServerBackend={hasServerBackend}
+            backendUrl={backendUrl}
+            onSaveBackendUrl={handleSaveBackendUrl}
             onChangeConfig={handleChangeConfig}
             onStartCrawl={handleStartCrawl}
             onStopCrawl={handleStopCrawl}

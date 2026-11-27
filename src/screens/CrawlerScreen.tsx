@@ -9,6 +9,7 @@ import {
   Play,
   Plus,
   RefreshCw,
+  Server,
   Square,
   Trash2,
   X,
@@ -30,6 +31,9 @@ interface Props {
   config: CrawlConfig;
   progress: CrawlProgressState;
   sessions: CrawlSession[];
+  hasServerBackend: boolean | null;
+  backendUrl: string;
+  onSaveBackendUrl: (url: string) => Promise<boolean>;
   onChangeConfig: (patch: Partial<CrawlConfig>) => void;
   onStartCrawl: () => void;
   onStopCrawl: () => void;
@@ -42,6 +46,9 @@ export const CrawlerScreen: React.FC<Props> = ({
   config,
   progress,
   sessions,
+  hasServerBackend,
+  backendUrl,
+  onSaveBackendUrl,
   onChangeConfig,
   onStartCrawl,
   onStopCrawl,
@@ -51,6 +58,8 @@ export const CrawlerScreen: React.FC<Props> = ({
 }) => {
   const [showYamlModal, setShowYamlModal] = useState(false);
   const [yamlCopied, setYamlCopied] = useState(false);
+  const [backendInput, setBackendInput] = useState(backendUrl);
+  const [checkingBackend, setCheckingBackend] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentSource = NEWS_SOURCES[config.webname];
@@ -401,8 +410,45 @@ export const CrawlerScreen: React.FC<Props> = ({
           </section>
         </div>
 
-        {/* Right Column: Live Progress, Retry Failed & Recent Sessions */}
+        {/* Right Column: Backend Notice (Static Mode), Live Progress, Retry Failed & Recent Sessions */}
         <div className="space-y-5 lg:col-span-5">
+          {hasServerBackend === false && (
+            <section className="rounded-2xl border border-amber-300/80 bg-amber-50/70 p-4 dark:border-amber-800/70 dark:bg-amber-950/30">
+              <div className="flex items-start gap-2.5">
+                <Server className="mt-0.5 h-4 w-4 shrink-0 text-amber-800 dark:text-amber-300" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <h2 className="text-xs font-semibold text-amber-950 dark:text-amber-100">
+                    Chế độ Web tĩnh (chưa kết nối máy chủ Node.js)
+                  </h2>
+                  <p className="text-xs leading-relaxed text-amber-900/90 dark:text-amber-200/90">
+                    Trình duyệt trên điện thoại và GitHub Pages chặn tải trực tiếp HTML từ VNExpress, Dân Trí, VietNamNet (chính sách CORS, không phải do thiếu quyền thiết bị). Để thu thập từ mọi thiết bị, hãy chạy <code className="font-mono-data">server.ts</code> trên Render/Railway/VPS hoặc máy tính và dán URL máy chủ vào đây:
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={backendInput}
+                      onChange={(e) => setBackendInput(e.target.value)}
+                      placeholder="https://ten-server-cua-ban.onrender.com"
+                      className="min-h-[40px] min-w-0 flex-1 rounded-xl border border-amber-300 bg-white px-3 text-xs font-mono-data text-slate-900 focus:border-red-700 focus:outline-none dark:border-amber-800 dark:bg-slate-900 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      disabled={checkingBackend}
+                      onClick={async () => {
+                        setCheckingBackend(true);
+                        await onSaveBackendUrl(backendInput);
+                        setCheckingBackend(false);
+                      }}
+                      className="min-h-[40px] shrink-0 rounded-xl bg-slate-900 px-3.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700"
+                    >
+                      {checkingBackend ? 'Đang kiểm tra...' : 'Kết nối'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+
           {/* Progress Card */}
           <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center justify-between gap-2">

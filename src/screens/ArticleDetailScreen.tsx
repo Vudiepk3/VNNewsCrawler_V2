@@ -17,13 +17,13 @@ import {
 } from 'lucide-react';
 import { NEWS_SOURCES, getDisplayTimestamp } from '../shared/types';
 import type { CrawledArticle } from '../shared/types';
+import { TikTokPostModal } from '../components/TikTokPostModal';
 import {
   buildArticleTxtExport,
   buildFullArticleText,
   copyTextToClipboard,
   downloadAllArticleImages,
   downloadSingleImage,
-  executeTikTokPost,
   exportTextFile,
   formatDateTime,
   formatRelativeTime,
@@ -105,32 +105,12 @@ export const ArticleDetailScreen: React.FC<Props> = ({
     }
   };
 
-  const runTikTokFlow = async (mode: 'first' | 'all') => {
-    setShowTikTokModal(false);
-    setIsBusy(true);
-    try {
-      const result = await executeTikTokPost(article, mode);
-      if (result.status === 'shared_native') {
-        onNotify('success', `Đã copy nội dung & mở bảng chia sẻ ${result.imageCount} ảnh sang TikTok`);
-      } else {
-        onNotify('success', `Đã copy nội dung & tải ${result.imageCount} ảnh. Sẵn sàng đăng lên TikTok!`);
-      }
-    } catch (err) {
-      onNotify('error', err instanceof Error ? err.message : 'Không thể chuẩn bị đăng lên TikTok');
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
   const handleTikTokClick = () => {
     if (imageCount === 0) {
       onNotify('warning', 'Không đăng được lên TikTok do bài viết không có ảnh!');
       return;
     }
-    if (imageCount === 1) {
-      void runTikTokFlow('first');
-      return;
-    }
+    void copyTextToClipboard(buildFullArticleText(article));
     setShowTikTokModal(true);
   };
 
@@ -463,48 +443,13 @@ export const ArticleDetailScreen: React.FC<Props> = ({
         </div>
       )}
 
-      {/* TikTok Image Choice Modal (when > 1 image) */}
+      {/* TikTok Post Studio Modal */}
       {showTikTokModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          onClick={() => setShowTikTokModal(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-xl sm:rounded-2xl dark:bg-slate-900 dark:border dark:border-slate-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-300 sm:hidden dark:bg-slate-700" />
-            <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
-              Chọn ảnh để đăng lên TikTok
-            </h3>
-            <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
-              Nội dung bài viết sẽ được tự động sao chép vào bộ nhớ tạm trước khi chia sẻ sang TikTok.
-            </p>
-            <div className="mt-5 space-y-2.5">
-              <button
-                type="button"
-                onClick={() => runTikTokFlow('first')}
-                className="min-h-[46px] w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 dark:bg-red-700 dark:hover:bg-red-800"
-              >
-                Tải ảnh đầu tiên (#1) & Đăng TikTok
-              </button>
-              <button
-                type="button"
-                onClick={() => runTikTokFlow('all')}
-                className="min-h-[46px] w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-800"
-              >
-                Tải hết ({imageCount} ảnh) & Đăng TikTok
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowTikTokModal(false)}
-                className="min-h-[42px] w-full rounded-xl px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                Hủy
-              </button>
-            </div>
-          </div>
-        </div>
+        <TikTokPostModal
+          article={article}
+          onClose={() => setShowTikTokModal(false)}
+          onNotify={onNotify}
+        />
       )}
 
       {/* Long-Press Text Copy Options Modal */}

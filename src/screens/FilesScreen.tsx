@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import type { CrawledArticle, ResultFileItem } from '../shared/types';
 import {
+  apiUrl,
   buildArticleTxtExport,
   copyTextToClipboard,
   downloadSingleImage,
@@ -42,7 +43,7 @@ export const FilesScreen: React.FC<Props> = ({ files, articles = [], onRefresh, 
 
   const readTextContent = async (file: ResultFileItem): Promise<string | null> => {
     try {
-      const res = await fetch(`/api/files/content?path=${encodeURIComponent(file.relativePath)}`);
+      const res = await fetch(apiUrl(`/api/files/content?path=${encodeURIComponent(file.relativePath)}`));
       if (res.ok && res.headers.get('content-type')?.includes('application/json')) {
         const data = (await res.json()) as { content: string };
         return data.content;
